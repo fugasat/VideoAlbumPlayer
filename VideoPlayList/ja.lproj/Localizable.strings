@@ -1,0 +1,20 @@
+// SettingsView
+"settings" = "設定";
+
+"orientation" = "ビデオ再生時の向き";
+"portrait" = "縦";
+"landscape" = "横";
+
+"playback order" = "再生順";
+"oldest order" = "日付が古い順";
+"new order" = "日付が新しい順";
+"shuffle order" = "シャッフル";
+
+// ContentView
+"access to photos" = "写真へのアクセス";
+"cancel" = "キャンセル";
+"alert message" = "アルバムへのアクセスが許可されていない為、ビデオアルバム画面を表示することができません。'Video Album Player'アプリの設定画面を開いて、すべての写真へのアクセスを許可してください。";
+
+// AppCoordinator
+"video albums" = "ビデオアルバム";
+"no video albums" = "ビデオアルバム無し";

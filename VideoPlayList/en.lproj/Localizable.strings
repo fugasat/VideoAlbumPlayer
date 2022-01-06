@@ -1,0 +1,22 @@
+// SettingsView
+"settings" = "Settings";
+
+"orientation" = "Playback orientation";
+"portrait" = "Portrait";
+"landscape" = "Landscape";
+
+"playback order" = "Playback order";
+"oldest order" = "Oldest date order";
+"new order" = "New date order";
+"shuffle order" = "Shuffle";
+
+// ContentView
+"access to photos" = "Access to photos";
+"cancel" = "Cancel";
+"alert message" = "The video albums screen cannot be displayed because access to the album is not permitted. Please open the setting screen of 'Video Album Player' application and allow access to all photos.";
+
+// AppCoordinator
+"video albums" = "Video Albums";
+"no video albums" = "No Video Albums";
+
+
