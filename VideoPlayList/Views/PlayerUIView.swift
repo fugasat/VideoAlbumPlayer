@@ -116,10 +116,9 @@ class PlayerUIView: UIView {
             playerLayer0.setAffineTransform(CGAffineTransform(rotationAngle: rotationAngle))
             playerLayer1.setAffineTransform(CGAffineTransform(rotationAngle: rotationAngle))
 
-            PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (asset, audioMix, args) in
-                let avUrlAsset = asset as! AVURLAsset
-                let playerItem: AVPlayerItem = AVPlayerItem(asset: avUrlAsset)
-
+            let options = PHVideoRequestOptions()
+            options.isNetworkAccessAllowed = true
+            PHCachingImageManager().requestPlayerItem(forVideo: asset, options: options) { (playerItem, info) in
                 DispatchQueue.main.async {
                     self.switchActivePlayerLayer()
                     let player = self.getActivePlayer()
