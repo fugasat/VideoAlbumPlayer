@@ -3,15 +3,17 @@ import AVKit
 import Photos
 
 struct ContentView: View {
+
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject var appManager = AppManager()
     @State private var showingSettingsModal = false
-    @ObservedObject var appCoordinator = AppCoordinator()
 
     var body: some View {
         NavigationView {
             List {
-                ForEach(appCoordinator.model.albums.indices, id: \.self) { index in
-                    let album = appCoordinator.model.albums[index]
-                    NavigationLink(destination: VideoView(appCoordinator: appCoordinator, album: album)) {
+                ForEach(appManager.model.albums.indices, id: \.self) { index in
+                    let album = appManager.model.albums[index]
+                    NavigationLink(destination: VideoView(appManager: appManager, playerManager0: PlayerManager(), playerManager1: PlayerManager(), album: album)) {
                         HStack {
                             let baseIdentifier = "ContentView_List_\(index)_Text"
                             Text(album.getTitle())
@@ -24,7 +26,7 @@ struct ContentView: View {
                 }
             }
             .accessibility(identifier: "ContentView_List")
-            .navigationBarTitle(appCoordinator.navigationTitle, displayMode: .inline)
+            .navigationBarTitle(appManager.navigationTitle, displayMode: .inline)
             .navigationBarItems(trailing: Button(
                 action: {
                     self.showingSettingsModal.toggle()
@@ -32,15 +34,18 @@ struct ContentView: View {
                     Image(systemName: "gearshape.fill")
                 }
             )
-            .navigationBarHidden(appCoordinator.hideNavigationBar)
-            .navigationBarBackButtonHidden(appCoordinator.hideNavigationBar)
-            .onAppear {
-                appCoordinator.startTopView()
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    appManager.start()
+                } else if phase == .background {
+                    // 再生中にバックグラウンド状態に遷移した場合はViewを閉じる
+                    appManager.closeAlbum()
+                }
             }
             .sheet(isPresented: $showingSettingsModal) {
                 SettingsView(showingSettingsModal: $showingSettingsModal)
             }
-            .alert("access to photos", isPresented: $appCoordinator.showingPhotoLibraryAuthorizedAlert){
+            .alert("access to photos", isPresented: $appManager.showingPhotoLibraryAuthorizedAlert){
                 Button("cancel") {
                     
                 }
@@ -77,8 +82,8 @@ struct ContentView_Previews: PreviewProvider {
             ]),
         ]
         let previewModel = Model(albums: previewAlbums)
-        let modelCoordinator = AppCoordinator(model: previewModel)
-        ContentView(appCoordinator: modelCoordinator)
+        let appManager = AppManager(model: previewModel)
+        ContentView(appManager: appManager)
     }
 }
 

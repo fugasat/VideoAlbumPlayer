@@ -48,6 +48,10 @@ class MediaManager {
         }
     }
     
+    func getPlayIndex() -> Int {
+        return playIndex
+    }
+    
     func next() -> Bool {
         if playList.count == 0 {
             return false
@@ -70,6 +74,14 @@ class MediaManager {
             return false
         }
         return true
+    }
+    
+    func enablePrevious() -> Bool {
+        if playIndex > 0 {
+            return true
+        } else {
+            return false
+        }
     }
 
 }
