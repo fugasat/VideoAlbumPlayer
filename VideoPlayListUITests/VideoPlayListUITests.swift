@@ -1,5 +1,23 @@
 import XCTest
 
+/*
+ 事前に準備しておくこと
+    * 対応デバイス
+        * (6.5)iPhone 12 Pro Max
+        * (5.5)iPhone 8 Plus
+        * (12.9)iPad Pro 第 5 世代
+    * シミュレータにサンプル動画をセットアップ
+        * sample.movをMacからシミュレータにコピー
+        * シミュレータ内で複製して3個にする
+        * アルバム一覧（以下順番で作成する、括弧の中はビデオの数）
+            * Cat(3)
+            * Family(2)
+            * Travel(2)
+            * Cooking(1)
+            * Sports(1)
+ AppStore申請用キャプチャ画像の取得はfastlaneを使う（以下コマンドを実行）
+    * fastlane snapshot run
+ */
 class VideoPlayListUITests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -17,21 +35,21 @@ class VideoPlayListUITests: XCTestCase {
         }
         
         // UI tests must launch the application that they test.
-        // fastlane command : fastlane snapshot run
         let app = XCUIApplication()
-        setupSnapshot(app)
+        setupSnapshot(app) // setup fastlane
         app.launch()
 
+        //
         // 写真へのアクセス許可
+        //
         if app.tables["ContentView_List"].cells.count == 0 {
             // システムアラートを管理している springboard のアプリケーションをキャッチアップ
             let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-            // springboard のアプリケーションにアラートが表示されている想定なので、そこから任意のボタンを検知する
-            let buttonLabelTextJP = "すべての写真へのアクセスを許可"
-            let systemAllowBtnJP = springboard.buttons[buttonLabelTextJP]
+            // springboard のアプリケーションにアラートが表示されている想定なので、そこからボタンを検知する
+            let systemAllowBtnJP = springboard.buttons.element(boundBy: 1) // 「許可する」ボタン
 
-            // テスト実行中のアプリでもアラートをキャッチし、任意のボタンを検知する（ここでは「許可する」ボタン）
-            let allowBtnJP = app.alerts.firstMatch.buttons[buttonLabelTextJP]
+            // テスト実行中のアプリでもアラートをキャッチし、ボタンを検知する
+            let allowBtnJP = app.alerts.firstMatch.buttons.element(boundBy: 1) // 「許可する」ボタン
 
             // アラートボタンを検知するまで待機
             if systemAllowBtnJP.waitForExistence(timeout: 2) {
@@ -41,7 +59,31 @@ class VideoPlayListUITests: XCTestCase {
             }
         }
         
+        //
+        // 設定を初期設定に戻す
+        //
+        
+        // SettingsViewを開く
+        app.navigationBars.buttons.element(boundBy: 0).tap()
 
+        // 「再生時の向き」の入力項目を確認
+        app.buttons["SettingsView_Picker_orientation"].tap()
+        if !app.switches["SettingsView_Picker_orientation_portrait"].isSelected {
+            app.switches["SettingsView_Picker_orientation_portrait"].tap()
+        } else {
+            app.otherElements["SettingsView_NavigationView"].buttons.element(boundBy: 0).tap()
+        }
+
+        // 「再生順」の入力項目を確認
+        app.buttons["SettingsView_Picker_order"].tap()
+        if !app.switches["SettingsView_Picker_order_oldest"].isSelected {
+            app.switches["SettingsView_Picker_order_oldest"].tap()
+        } else {
+            app.otherElements["SettingsView_NavigationView"].buttons.element(boundBy: 0).tap()
+        }
+
+        // SettingsViewを閉じる
+        app.buttons["SettingsView_Form_Button_close"].tap()
     }
 
     override func tearDownWithError() throws {
@@ -91,11 +133,10 @@ class VideoPlayListUITests: XCTestCase {
         // NavigationBarが消えるまで待機
         sleep(2)
         // VideoViewをタップしてNavigationBarを再表示させる
-        let videoView = app.otherElements["VideoView_PlayerView"]
+        let videoView = app.otherElements["VideoView_PlayerView1"]
         XCTAssertTrue(videoView.exists)
         videoView.tap()
         snapshot("VideoView")
-        sleep(1)
         // NavigationBarの戻るボタンが表示されることを確認
         backButton = app.navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(backButton.exists)
@@ -109,6 +150,91 @@ class VideoPlayListUITests: XCTestCase {
         }
     }
 
+    func testVideoViewSwipeAction() throws {
+        let app = XCUIApplication()
+        var tables: XCUIElement
+        var videoView: XCUIElement
+
+        app.staticTexts.matching(identifier: "ContentView_List_0_Text_title").firstMatch.tap()
+        videoView = app.otherElements["VideoView_PlayerView0"]
+        videoView.swipeDown() // close
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 2) {
+            XCTFail()
+        }
+
+        app.staticTexts.matching(identifier: "ContentView_List_0_Text_title").firstMatch.tap()
+        videoView = app.otherElements["VideoView_PlayerView0"]
+        videoView.swipeUp() // close
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 2) {
+            XCTFail()
+        }
+
+        app.staticTexts.matching(identifier: "ContentView_List_0_Text_title").firstMatch.tap()
+        videoView = app.otherElements["VideoView_PlayerView0"]
+        videoView.swipeLeft() // 0 => 1
+        sleep(1)
+        videoView.swipeLeft() // 1 => 2
+        sleep(1)
+        videoView.swipeRight() // 2 => 1
+        sleep(1)
+        videoView.swipeRight() // 1 => 0
+        sleep(1)
+        videoView.swipeRight() // 0 => 0
+        sleep(1)
+        videoView.swipeLeft() // 0 => 1
+        sleep(1)
+        videoView.swipeLeft() // 1 => 2
+        sleep(1)
+        videoView.swipeLeft() // 2 => 3(close)
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 2) {
+            XCTFail()
+        }
+    }
+    
+    func testVideoViewSwipeActionOnLandscapeSetting() throws {
+        let app = XCUIApplication()
+        var tables: XCUIElement
+        var videoView: XCUIElement
+
+        // 再生方向を横にする
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["SettingsView_Picker_orientation"].tap()
+        app.switches["SettingsView_Picker_orientation_landscape"].tap()
+        // SettingsViewを閉じる
+        app.buttons["SettingsView_Form_Button_close"].tap()
+        
+        app.staticTexts.matching(identifier: "ContentView_List_0_Text_title").firstMatch.tap()
+        videoView = app.otherElements["VideoView_PlayerView0"]
+        videoView.swipeLeft() // close
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 2) {
+            XCTFail()
+        }
+
+        app.staticTexts.matching(identifier: "ContentView_List_0_Text_title").firstMatch.tap()
+        videoView = app.otherElements["VideoView_PlayerView0"]
+        videoView.swipeRight() // close
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 2) {
+            XCTFail()
+        }
+
+        app.staticTexts.matching(identifier: "ContentView_List_0_Text_title").firstMatch.tap()
+        videoView = app.otherElements["VideoView_PlayerView0"]
+        videoView.swipeUp() // 0 => 1
+        sleep(1)
+        videoView.swipeUp() // 1 => 2
+        sleep(1)
+        videoView.swipeUp() // 2 => 3(close)
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 2) {
+            XCTFail()
+        }
+    }
+    
     func testSettingsView() throws {
         let app = XCUIApplication()
         var picker: XCUIElement

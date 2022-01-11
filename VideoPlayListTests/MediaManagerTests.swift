@@ -17,45 +17,53 @@ class MediaManagerTests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
-    func test_再生対象のアルバムを設定() throws {
+    /// 再生対象のアルバムを設定
+    func test_setAlbum() throws {
         var targetAlbum: Album?
         
         targetAlbum = mediaManager.getAlbum()
         XCTAssertNil(targetAlbum)
+        XCTAssertEqual(-1, mediaManager.getPlayIndex())
 
         mediaManager.setAlbum(album: album)
         targetAlbum = mediaManager.getAlbum()
         XCTAssertEqual("test1", targetAlbum?.getTitle())
     }
 
-    func test_PlayListを初期化_PlayListを取得() {
+    /// PlayListを初期化,PlayListを取得
+    func test_initializePlayList() {
         var results: [Video]
 
         mediaManager.initializePlayList(sort: .date_asc)
         results = mediaManager.getPlayList()
         XCTAssertEqual(0, results.count)
-        
+        XCTAssertEqual(-1, mediaManager.getPlayIndex())
+
         mediaManager.setAlbum(album: album)
         
         mediaManager.initializePlayList(sort: .date_asc)
+        XCTAssertEqual(0, mediaManager.getPlayIndex())
         results = mediaManager.getPlayList()
         XCTAssertEqual(3, results.count)
         XCTAssertEqual("3", results[0].id)
         XCTAssertEqual("2", results[1].id)
         XCTAssertEqual("1", results[2].id)
         mediaManager.initializePlayList(sort: .date_desc)
+        XCTAssertEqual(0, mediaManager.getPlayIndex())
         results = mediaManager.getPlayList()
         XCTAssertEqual(3, results.count)
         XCTAssertEqual("1", results[0].id)
         XCTAssertEqual("2", results[1].id)
         XCTAssertEqual("3", results[2].id)
         mediaManager.initializePlayList(sort: .shuffle)
+        XCTAssertEqual(0, mediaManager.getPlayIndex())
         results = mediaManager.getPlayList()
         XCTAssertEqual(3, results.count)
         // shuffleの結果を保証できないのでテストは除外
     }
     
-    func test_再生対象のビデオを取得() {
+    /// 再生対象のビデオを取得
+    func test_getCurrentVideo() {
         var currentVideo: Video?
 
         currentVideo = mediaManager.getCurrentVideo()
@@ -71,7 +79,8 @@ class MediaManagerTests: XCTestCase {
         XCTAssertEqual("3", currentVideo?.id)
     }
 
-    func test_次のビデオに切り替え() {
+    /// 次のビデオに切り替え
+    func test_next() {
         var currentVideo: Video?
         var result: Bool
 
@@ -88,29 +97,34 @@ class MediaManagerTests: XCTestCase {
         // No.1 => 2
         result = mediaManager.next()
         XCTAssertTrue(result)
+        XCTAssertEqual(1, mediaManager.getPlayIndex())
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertEqual("2", currentVideo?.id)
 
         // No.2 => 3(最後)
         result = mediaManager.next()
         XCTAssertTrue(result)
+        XCTAssertEqual(2, mediaManager.getPlayIndex())
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertEqual("1", currentVideo?.id)
 
         // 最後から更に進めても何も起きない
         result = mediaManager.next()
         XCTAssertFalse(result)
+        XCTAssertEqual(2, mediaManager.getPlayIndex())
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertEqual("1", currentVideo?.id)
     }
     
-    func test_前のビデオに切り替え() {
+    /// 前のビデオに切り替え
+    func test_previous() {
         var currentVideo: Video?
         var result: Bool
 
         // アルバム未設定の時
         result = mediaManager.previous()
         XCTAssertFalse(result)
+        XCTAssertEqual(-1, mediaManager.getPlayIndex())
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertNil(currentVideo)
 
@@ -121,6 +135,7 @@ class MediaManagerTests: XCTestCase {
         // 最初の状態で戻そうとしても何も起きない
         result = mediaManager.previous()
         XCTAssertFalse(result)
+        XCTAssertEqual(0, mediaManager.getPlayIndex())
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertEqual("3", currentVideo?.id)
 
@@ -129,6 +144,7 @@ class MediaManagerTests: XCTestCase {
         _ = mediaManager.next()
         // No.3 => 2
         result = mediaManager.previous()
+        XCTAssertEqual(1, mediaManager.getPlayIndex())
         XCTAssertTrue(result)
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertEqual("2", currentVideo?.id)
@@ -136,8 +152,28 @@ class MediaManagerTests: XCTestCase {
         // No.2 => 1
         result = mediaManager.previous()
         XCTAssertTrue(result)
+        XCTAssertEqual(0, mediaManager.getPlayIndex())
         currentVideo = mediaManager.getCurrentVideo()
         XCTAssertEqual("3", currentVideo?.id)
+    }
+    
+    /// 前のビデオに切り替え可能か確認
+    func test_enablePrevious() {
+        // アルバム未設定の時
+        XCTAssertFalse(mediaManager.enablePrevious())
+
+        // アルバム設定直後
+        mediaManager.setAlbum(album: album)
+        mediaManager.initializePlayList(sort: .date_asc)
+        XCTAssertFalse(mediaManager.enablePrevious())
+
+        // No.1 => 2
+        _ = mediaManager.next()
+        XCTAssertTrue(mediaManager.enablePrevious())
+
+        // No.2 => 1
+        _ = mediaManager.previous()
+        XCTAssertFalse(mediaManager.enablePrevious())
     }
     
 }
