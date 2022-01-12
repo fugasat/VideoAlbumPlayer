@@ -19,6 +19,7 @@
 		604CEE5F278D31F000942469 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 604CEE5C278D31F000942469 /* PlayerView.swift */; };
 		604CEE60278D31FC00942469 /* AppManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 604CEE56278D319000942469 /* AppManager.swift */; };
 		604CEE61278D31FC00942469 /* AppManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 604CEE56278D319000942469 /* AppManager.swift */; };
+		60A1F676278F232E00F81AA1 /* AppManagerTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A1F675278F232E00F81AA1 /* AppManagerTest.swift */; };
 		60ED62CF277AF8E50034872D /* VideoPlayListApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60ED62CE277AF8E50034872D /* VideoPlayListApp.swift */; };
 		60ED62D1277AF8E50034872D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60ED62D0277AF8E50034872D /* ContentView.swift */; };
 		60ED62D3277AF8E60034872D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 60ED62D2277AF8E60034872D /* Assets.xcassets */; };
@@ -83,6 +84,7 @@
 		604CEE56278D319000942469 /* AppManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppManager.swift; sourceTree = "<group>"; };
 		604CEE58278D31D100942469 /* PlayerManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PlayerManager.swift; sourceTree = "<group>"; };
 		604CEE5C278D31F000942469 /* PlayerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		60A1F675278F232E00F81AA1 /* AppManagerTest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppManagerTest.swift; sourceTree = "<group>"; };
 		60ED62CB277AF8E50034872D /* VideoPlayList.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VideoPlayList.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		60ED62CE277AF8E50034872D /* VideoPlayListApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayListApp.swift; sourceTree = "<group>"; };
 		60ED62D0277AF8E50034872D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 		60ED62DE277AF8E60034872D /* VideoPlayListTests */ = {
 			isa = PBXGroup;
 			children = (
+				60A1F675278F232E00F81AA1 /* AppManagerTest.swift */,
 				60ED6301277AFDA90034872D /* MediaManagerTests.swift */,
 			);
 			path = VideoPlayListTests;
@@ -376,6 +379,7 @@
 			files = (
 				60FEEAAC277FD787006558D4 /* SettingsView.swift in Sources */,
 				60ED6302277AFDA90034872D /* MediaManagerTests.swift in Sources */,
+				60A1F676278F232E00F81AA1 /* AppManagerTest.swift in Sources */,
 				604CEE5A278D31D100942469 /* PlayerManager.swift in Sources */,
 				60ED630E277C8A3E0034872D /* VideoView.swift in Sources */,
 				60ED62FB277AFBD70034872D /* Album.swift in Sources */,

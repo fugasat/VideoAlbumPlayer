@@ -170,7 +170,7 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     }
     
     func previousPlay() {
-        print("AppManager.previousPlay")
+        print("AppManager.previousPlay : index=\(mediaManager.getPlayIndex() + 1)/\(mediaManager.getPlayList().count)")
         if mediaManager.previous() {
             startPlay()
         }
@@ -185,16 +185,21 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
 
     func restartPlay() {
         print("AppManager.restartPlay")
-        pausePlayFlag = false
-        requestRestartPlay = Request()
-        timerHideNavigationBar()
+        if mediaManager.getAlbum() != nil && pausePlayFlag {
+            pausePlayFlag = false
+            requestRestartPlay = Request()
+            timerHideNavigationBar()
+        }
     }
     
     func togglePauseAndRestartPlay() {
-        if pausePlayFlag {
-            restartPlay()
-        } else {
-            pausePlay()
+        print("AppManager.togglePauseAndRestartPlay")
+        if mediaManager.getAlbum() != nil {
+            if pausePlayFlag {
+                restartPlay()
+            } else {
+                pausePlay()
+            }
         }
     }
 }

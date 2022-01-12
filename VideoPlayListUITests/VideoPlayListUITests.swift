@@ -150,6 +150,36 @@ class VideoPlayListUITests: XCTestCase {
         }
     }
 
+    func testVideoViewTapAction() throws {
+        let app = XCUIApplication()
+        var tables: XCUIElement
+        var backButton: XCUIElement
+
+        // VideoViewをタップして一時停止状態になることを確認
+        app.staticTexts.matching(identifier: "ContentView_List_1_Text_title").firstMatch.tap()
+        sleep(2)
+        let videoView = app.otherElements["VideoView_PlayerView1"]
+        XCTAssertTrue(videoView.exists)
+        videoView.tap()
+
+        // NavigationBarの戻るボタンが表示されることを確認
+        backButton = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(backButton.exists)
+        
+        // 一定時間経過してもまだ再生が終わっていないことを確認
+        sleep(5)
+        XCTAssertTrue(videoView.exists)
+
+        // VideoViewをタップして再生を再開する
+        videoView.tap()
+
+        // 再生が完了して一覧に戻ることを確認
+        tables = app.tables["ContentView_List"]
+        if !tables.waitForExistence(timeout: 8) {
+            XCTFail()
+        }
+    }
+
     func testVideoViewSwipeAction() throws {
         let app = XCUIApplication()
         var tables: XCUIElement
