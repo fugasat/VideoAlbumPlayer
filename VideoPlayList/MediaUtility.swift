@@ -1,12 +1,62 @@
 import Foundation
 import Photos
 
-class MediaUtility: NSObject, PHPhotoLibraryChangeObserver {
+class MediaUtility {
     
-    override init() {
-        super.init()
+    /// 写真アクセス許可を得る
+    func register(photoLibraryChangeObserver: PHPhotoLibraryChangeObserver, handler: @escaping (Bool) ->()) {
+        // 写真アクセス許可が得られているか確認
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        if isAuthorized(authStatus: authStatus) {
+            print("PHPhotoLibrary.authorized")
+            registerPhotoLibrary(photoLibraryChangeObserver: photoLibraryChangeObserver, handler: handler)
+        } else {
+            print("PHPhotoLibrary.requestAuthorization")
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { [self] (requestedAuthStatus) in
+                if isAuthorized(authStatus: requestedAuthStatus) {
+                    registerPhotoLibrary(photoLibraryChangeObserver: photoLibraryChangeObserver, handler: handler)
+                } else {
+                    handler(false)
+                }
+            }
+        }
+        
+        // 写真アクセスを許可
+        func registerPhotoLibrary(photoLibraryChangeObserver: PHPhotoLibraryChangeObserver, handler: @escaping (Bool) ->()) {
+            PHPhotoLibrary.shared().register(photoLibraryChangeObserver)
+            print("PHPhotoLibrary.registered")
+            handler(true)
+        }
     }
-
+        
+    /// 許可されているか確認
+    func isAuthorized(authStatus: PHAuthorizationStatus) -> Bool {
+        printAuthorizationStatus(authStatus: authStatus)
+        if authStatus == .authorized {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    private func printAuthorizationStatus(authStatus: PHAuthorizationStatus) {
+        switch authStatus {
+        case .notDetermined: // 未設定
+            print("PHAuthorizationStatus.notDetermined")
+        case .restricted: // ユーザがアクセス権限を持っていない
+            print("PHAuthorizationStatus.restricted")
+        case .denied: // アクセス拒否
+            print("PHAuthorizationStatus.denied")
+        case .authorized: // 全ての写真へのアクセスを許可
+            print("PHAuthorizationStatus.authorized")
+        case .limited: // 写真を選択
+            print("PHAuthorizationStatus.limited")
+        @unknown default:
+            print("PHAuthorizationStatus.default")
+        }
+    }
+    
+    /// アルバムを取得
     func load() -> [Album] {
         var resultAlbums: [Album] = []
         // ユーザーが作成したアルバムのみ取得(.album .albumRegular)
@@ -32,9 +82,4 @@ class MediaUtility: NSObject, PHPhotoLibraryChangeObserver {
         print("load albums(\(resultAlbums.count))")
         return resultAlbums
     }
-
-    func photoLibraryDidChange(_ changeInstance: PHChange) {
-        print("photoLibraryDidChange OK")
-    }
-    
 }

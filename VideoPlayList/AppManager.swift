@@ -1,6 +1,27 @@
 import Foundation
 import Photos
 
+class VideoPlayerStatus: Equatable {
+
+    enum VideoPlayerStatusType : Int {
+        case none = -1
+        case start = 0
+        case pause = 1
+        case restart = 2
+        case close = 3
+    }
+
+    let status: VideoPlayerStatusType
+
+    init(status: VideoPlayerStatusType) {
+        self.status = status
+    }
+
+    static func == (lhs: VideoPlayerStatus, rhs: VideoPlayerStatus) -> Bool {
+        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+    }
+}
+
 /// アプリ全体の制御を行う
 class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
 
@@ -8,17 +29,11 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     @Published var navigationTitle = ""
     @Published var hideNavigationBar = false
     @Published var showingPhotoLibraryAuthorizedAlert = false
-    @Published var requestCloseAlbum = Request()
-    @Published var requestPlayStart = Request()
-    @Published var requestPausePlay = Request()
-    @Published var requestRestartPlay = Request()
+    @Published var videoPlayerStatus: VideoPlayerStatus = VideoPlayerStatus(status: .none)
     @Published var rotationAngle: CGFloat = 0
-
 
     let mediaUtility = MediaUtility()
     let mediaManager = MediaManager()
-    var photoLibraryAuthorized = false
-    var pausePlayFlag = false
 
     override init() {
         model = Model()
@@ -34,45 +49,10 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     // MARK: Photo access
     //
     
-    /// アプリ起動時に写真アクセス許可が得られているか確認
-    private func checkAuthorizationStatus() {
-        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        print("AppManager.PHPhotoLibrary.authorizationStatus")
-        printAuthorizationStatus(authStatus: authStatus)
-        if isAuthorized(authStatus: authStatus) {
-            photoLibraryAuthorized = true
-        }
-    }
-    
-    func isAuthorized(authStatus: PHAuthorizationStatus) -> Bool {
-        if authStatus == .authorized {
-            return true
-        } else {
-            return false
-        }
-    }
-    
-    private func printAuthorizationStatus(authStatus: PHAuthorizationStatus) {
-        switch authStatus {
-        case .notDetermined: // 未設定
-            print("PHAuthorizationStatus.notDetermined")
-        case .restricted: // ユーザがアクセス権限を持っていない
-            print("PHAuthorizationStatus.restricted")
-        case .denied: // アクセス拒否
-            print("PHAuthorizationStatus.denied")
-        case .authorized: // 全ての写真へのアクセスを許可
-            print("PHAuthorizationStatus.authorized")
-        case .limited: // 写真を選択
-            print("PHAuthorizationStatus.limited")
-        @unknown default:
-            print("PHAuthorizationStatus.default")
-        }
-    }
-    
     /// アルバム更新通知
     func photoLibraryDidChange(_ changeInstance: PHChange) {
         print("AppManager.photoLibraryDidChange")
-        updateModel()
+        loadAlbum()
     }
 
     //
@@ -83,35 +63,25 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     func start() {
         print("AppManager.start")
         navigationTitle = createNavigationTitle(model: model)
-        checkAuthorizationStatus()
-        updateModel()
+        loadAlbum()
     }
     
-    private func updateModel() {
+    private func loadAlbum() {
         // 写真アクセス許可が得られているか確認
-        if !photoLibraryAuthorized {
-            print("AppManager.PHPhotoLibrary.requestAuthorization")
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { [self] (authStatus) in
-                printAuthorizationStatus(authStatus: authStatus)
-                if isAuthorized(authStatus: authStatus) {
-                    photoLibraryAuthorized = true
-                    updateModel()
+        print("AppManager.updateAlbum")
+        mediaUtility.register(photoLibraryChangeObserver: self) { authorized in
+            DispatchQueue.main.async {
+                // ※ Publish変数のbackground threadでの更新は許可されていない為、main threadで処理する
+                if authorized {
+                    // Photoライブラリへのアクセスが許可されていたらアルバムを読み込む
+                    let albums = self.mediaUtility.load()
+                    self.model = Model(albums: albums)
+                    self.navigationTitle = self.createNavigationTitle(model: self.model)
                 } else {
-                    // Publish変数のbackground threadでの更新は許可されていない為、main threadで処理する
-                    DispatchQueue.main.async {
-                        // 許可が得られていない場合はアラート表示を有効にする
-                        showingPhotoLibraryAuthorizedAlert = true
-                    }
+                    // 許可されていない場合はアラート表示を有効にする
+                    self.showingPhotoLibraryAuthorizedAlert = true
                 }
             }
-            return
-        }
-        PHPhotoLibrary.shared().register(self)
-
-        DispatchQueue.main.async {
-            let albums = self.mediaUtility.load()
-            self.model = Model(albums: albums)
-            self.navigationTitle = self.createNavigationTitle(model: self.model)
         }
     }
     
@@ -131,7 +101,6 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
         print("AppManager.openAlbum : \(album.getTitle()) (\(album.videos.count))")
         mediaManager.setAlbum(album: album)
         mediaManager.initializePlayList(sort: SettingsManager.sharedManager.settings.sortType)
-
         rotationAngle = 0
         startPlay()
     }
@@ -140,10 +109,18 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
         return mediaManager.getCurrentVideo()
     }
 
+    func isPause() -> Bool {
+        if self.videoPlayerStatus.status == .pause {
+            return true
+        } else {
+            return false
+        }
+    }
+    
     func timerHideNavigationBar() {
         let _ = Timer.scheduledTimer(withTimeInterval: 2, repeats: false, block: {
             (time:Timer) in
-            if !self.pausePlayFlag {
+            if !self.isPause() {
                 self.hideNavigationBar = true
             }
         })
@@ -151,12 +128,12 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     
     func closeAlbum() {
         print("AppManager.closeAlbum")
-        requestCloseAlbum = Request()
+        videoPlayerStatus = VideoPlayerStatus(status: .close)
     }
     
     func startPlay() {
-        pausePlayFlag = false
-        requestPlayStart = Request()
+        print("AppManager.startPlay")
+        videoPlayerStatus = VideoPlayerStatus(status: .start)
         timerHideNavigationBar()
     }
     
@@ -179,15 +156,13 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     func pausePlay() {
         print("AppManager.pausePlay")
         hideNavigationBar = false
-        pausePlayFlag = true
-        requestPausePlay = Request()
+        videoPlayerStatus = VideoPlayerStatus(status: .pause)
     }
 
     func restartPlay() {
         print("AppManager.restartPlay")
-        if mediaManager.getAlbum() != nil && pausePlayFlag {
-            pausePlayFlag = false
-            requestRestartPlay = Request()
+        if mediaManager.getAlbum() != nil && isPause() {
+            videoPlayerStatus = VideoPlayerStatus(status: .restart)
             timerHideNavigationBar()
         }
     }
@@ -195,16 +170,12 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     func togglePauseAndRestartPlay() {
         print("AppManager.togglePauseAndRestartPlay")
         if mediaManager.getAlbum() != nil {
-            if pausePlayFlag {
+            if isPause() {
                 restartPlay()
             } else {
                 pausePlay()
             }
         }
     }
-}
-
-struct Request: Equatable {
-    var requestedDate = Date()
 }
 

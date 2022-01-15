@@ -13,7 +13,7 @@ struct ContentView: View {
             List {
                 ForEach(appManager.model.albums.indices, id: \.self) { index in
                     let album = appManager.model.albums[index]
-                    NavigationLink(destination: VideoView(appManager: appManager, playerManager0: PlayerManager(), playerManager1: PlayerManager(), album: album)) {
+                    NavigationLink(destination: VideoView(appManager: appManager, album: album)) {
                         HStack {
                             let baseIdentifier = "ContentView_List_\(index)_Text"
                             Text(album.getTitle())
@@ -35,13 +35,20 @@ struct ContentView: View {
                 }
             )
             .onChange(of: scenePhase) { phase in
-                if phase == .active {
+                // active <=> inactive <=> background
+                // Macの場合はinactiveにはならないので注意
+                // （初回起動時も最初からactiveなのでonChangeは発生しない
+                if phase == .inactive && scenePhase == .background {
+                    // バックグラウンドから復帰する場合はAppを初期化する
                     appManager.start()
                 } else if phase == .background {
                     // 再生中にバックグラウンド状態に遷移した場合はViewを閉じる
                     appManager.closeAlbum()
                 }
             }
+            .onAppear(perform: {
+                appManager.start()
+            })
             .sheet(isPresented: $showingSettingsModal) {
                 SettingsView(showingSettingsModal: $showingSettingsModal)
             }

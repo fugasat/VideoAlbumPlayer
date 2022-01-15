@@ -2,30 +2,35 @@ import SwiftUI
 import AVKit
 
 struct VideoView: View {
-    
+
+    enum SwipeAction : Int {
+        case none = -1
+        case close = 0
+        case next = 1
+        case previous = 2
+    }
+
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var appManager: AppManager
-    @ObservedObject var playerManager0: PlayerManager
-    @ObservedObject var playerManager1: PlayerManager
-    var album: Album
-    
+    @State var playerStatus0: PlayerView.PlayerStatus = .none
+    @State var playerStatus1: PlayerView.PlayerStatus = .none
     @State var offset_x : CGFloat = 0
     @State var offset_y : CGFloat = 0
     @State var swipeAction: SwipeAction = .none
     @State var playerIndex: Int = -1
     @State var opacity0: CGFloat = 0
     @State var opacity1: CGFloat = 0
-
+    var album: Album
 
     var body: some View {
         GeometryReader { bodyView in
             Color.black.edgesIgnoringSafeArea(.all)
             ZStack() {
-                PlayerView(appManager: appManager, playerManager: playerManager0, rotationAngle: $appManager.rotationAngle, album: album)
+                PlayerView(appManager: appManager, status: $playerStatus0, album: album)
                     .accessibility(identifier: "VideoView_PlayerView0")
                     .offset(x:offset_x, y:offset_y)
                     .opacity(opacity0)
-                PlayerView(appManager: appManager, playerManager: playerManager1, rotationAngle: $appManager.rotationAngle, album: album)
+                PlayerView(appManager: appManager, status: $playerStatus1, album: album)
                     .accessibility(identifier: "VideoView_PlayerView1")
                     .offset(x:offset_x, y:offset_y)
                     .opacity(opacity1)
@@ -34,7 +39,7 @@ struct VideoView: View {
                 appManager.togglePauseAndRestartPlay()
             }
             .gesture(
-                DragGesture(minimumDistance: 5)
+                DragGesture(minimumDistance: 1)
                     .onChanged{ value in
                         offset_x = value.translation.width
                         offset_y = value.translation.height
@@ -58,27 +63,35 @@ struct VideoView: View {
         .onAppear {
             appManager.openAlbum(album: album)
         }
-        .onChange(of: appManager.requestCloseAlbum) { newValue in
-            closeAlbum()
-        }
-        .onChange(of: appManager.requestPlayStart) { newValue in
-            startPlay()
-        }
-        .onChange(of: appManager.requestPausePlay) { newValue in
-            pausePlay()
-        }
-        .onChange(of: appManager.requestRestartPlay) { newValue in
-            restartPlay()
+        .onChange(of: appManager.videoPlayerStatus) { newValue in
+            switch (newValue.status) {
+            case .none:
+                break
+            case .start:
+                startPlay()
+            case .pause:
+                pausePlay()
+            case .restart:
+                restartPlay()
+            case .close:
+                closeAlbum()
+            }
         }
     }
     
     private func startSwipeAnimation(value: DragGesture.Value) {
-        let swipe_rate = 0.2
-        let translation_x = value.translation.width
-        let translation_y = value.translation.height
+        let swipe_rate = 0.1
         let screen_width = UIScreen.main.bounds.width
         let screen_height = UIScreen.main.bounds.height
-        if translation_x < screen_width * swipe_rate * -1 {
+        var translation_x = value.predictedEndTranslation.width / screen_width
+        var translation_y = value.predictedEndTranslation.height / screen_height
+        if abs(translation_x) > abs(translation_y) {
+            translation_y = 0
+        } else {
+            translation_x = 0
+        }
+
+        if translation_x < swipe_rate * -1 {
             // left
             offset_x = screen_width * -1
             if appManager.rotationAngle == 0 {
@@ -86,7 +99,7 @@ struct VideoView: View {
             } else {
                 swipeAction = .close
             }
-        } else if translation_x > screen_width * swipe_rate {
+        } else if translation_x > swipe_rate {
             // right
             offset_x = screen_width
             if appManager.rotationAngle == 0 {
@@ -94,7 +107,7 @@ struct VideoView: View {
             } else {
                 swipeAction = .close
             }
-        } else if translation_y < screen_height * swipe_rate * -1 {
+        } else if translation_y < swipe_rate * -1 {
             // up
             offset_y = screen_height * -1
             swipeAction = .close
@@ -103,7 +116,7 @@ struct VideoView: View {
             } else {
                 swipeAction = .next
             }
-        } else if translation_y > screen_height * swipe_rate {
+        } else if translation_y > swipe_rate {
             // down
             offset_y = screen_height
             if appManager.rotationAngle == 0 {
@@ -157,8 +170,8 @@ struct VideoView: View {
         opacity1 = 0
         offset_x = 0
         offset_y = 0
-        playerManager0.requestClearPlayer = true
-        playerManager1.requestClearPlayer = true
+        playerStatus0 = .clear
+        playerStatus1 = .clear
         pausePlay()
     }
     
@@ -169,11 +182,11 @@ struct VideoView: View {
             playerIndex = 1 - playerIndex
         }
         if playerIndex % 2 == 0 {
-            playerManager0.requestStartPlayer = true
-            playerManager1.requestPausePlayer = true
+            playerStatus0 = .start
+            playerStatus1 = .pause
         } else {
-            playerManager1.requestStartPlayer = true
-            playerManager0.requestPausePlayer = true
+            playerStatus1 = .start
+            playerStatus0 = .pause
         }
         withAnimation(.easeOut(duration: 0.5)) {
             if playerIndex % 2 == 0 {
@@ -187,16 +200,16 @@ struct VideoView: View {
     }
 
     private func pausePlay() {
-        playerManager0.requestPausePlayer = true
-        playerManager1.requestPausePlayer = true
+        playerStatus0 = .pause
+        playerStatus1 = .pause
     }
     
     private func restartPlay() {
         if playerIndex >= 0 {
             if playerIndex % 2 == 0 {
-                playerManager0.requestRestartPlayer = true
+                playerStatus0 = .restart
             } else {
-                playerManager1.requestRestartPlayer = true
+                playerStatus1 = .restart
             }
         }
     }
@@ -214,7 +227,7 @@ struct VideoView_Previews: PreviewProvider {
                 PreviewVideo(id: "2", year: 2021, month: 12, day: 10),
                 PreviewVideo(id: "3", year: 2021, month: 12, day: 1),
             ])
-        VideoView(appManager: AppManager(), playerManager0: PlayerManager(), playerManager1: PlayerManager(), album: previewAlbum)
+        VideoView(appManager: AppManager(), album: previewAlbum)
     }
 }
 
@@ -268,11 +281,4 @@ extension View {
     func onAnimationCompleted<Value: VectorArithmetic>(for value: Value, completion: @escaping () -> Void) -> ModifiedContent<Self, AnimationCompletionObserverModifier<Value>> {
         return modifier(AnimationCompletionObserverModifier(observedValue: value, completion: completion))
     }
-}
-
-public enum SwipeAction : Int {
-    case none = -1
-    case close = 0
-    case next = 1
-    case previous = 2
 }

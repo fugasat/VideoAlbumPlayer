@@ -2,33 +2,35 @@ import SwiftUI
 
 struct PlayerView: UIViewRepresentable {
 
+    public enum PlayerStatus : Int {
+        case none = -1
+        case start = 0
+        case pause = 1
+        case restart = 2
+        case clear = 3
+    }
+
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var appManager: AppManager
-    @ObservedObject var playerManager: PlayerManager
-    @Binding var rotationAngle: CGFloat
-
+    @Binding var status: PlayerStatus
     var album: Album
 
     func updateUIView(_ uiView: UIView, context: UIViewRepresentableContext<PlayerView>) {
         DispatchQueue.main.async {
             let playerUIView = uiView as! PlayerUIView?
-            if playerManager.requestStartPlayer {
-                playerManager.requestStartPlayer = false
-                playerUIView?.startPlayer()
+            switch (status) {
+                case .none:
+                    break
+                case .start:
+                    playerUIView?.startPlayer()
+                case .pause:
+                    playerUIView?.pausePlayer()
+                case .restart:
+                    playerUIView?.restartPlayer()
+                case .clear:
+                    playerUIView?.clearPlayer()
             }
-            if playerManager.requestPausePlayer {
-                playerManager.requestPausePlayer = false
-                playerUIView?.pausePlayer()
-            }
-            if playerManager.requestRestartPlayer {
-                playerManager.requestRestartPlayer = false
-                playerUIView?.restartPlayer()
-            }
-            if playerManager.requestClearPlayer {
-                playerManager.requestClearPlayer = false
-                playerUIView?.clearPlayer()
-            }
-            playerUIView?.rotatePlayerLayer(angle: appManager.rotationAngle)
+            status = .none
         }
     }
 
@@ -37,11 +39,10 @@ struct PlayerView: UIViewRepresentable {
         let view = PlayerUIView(appManager: appManager)
         return view
     }
-
 }
 
 struct PlayerView_Previews: PreviewProvider {
     static var previews: some View {
-        PlayerView(appManager: AppManager(), playerManager: PlayerManager(), rotationAngle: .constant(0), album: PreviewAlbum(id: "1", title: "album1", videos: []))
+        PlayerView(appManager: AppManager(), status: .constant(.none), album: PreviewAlbum(id: "1", title: "album1", videos: []))
     }
 }
