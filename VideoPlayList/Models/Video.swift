@@ -1,7 +1,6 @@
-import Foundation
 import Photos
 
-class Video: Identifiable {
+class Video: Identifiable, Equatable {
     let id: String
     var asset: PHAsset
 
@@ -14,6 +13,10 @@ class Video: Identifiable {
         return asset.creationDate
     }
     
+    static func == (lhs: Video, rhs: Video) -> Bool {
+        return lhs.id == rhs.id
+    }
+
 }
 
 class PreviewVideo: Video {

@@ -1,5 +1,4 @@
 import SwiftUI
-import AVKit
 import Photos
 
 struct ContentView: View {
@@ -11,8 +10,8 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             List {
-                ForEach(appManager.model.albums.indices, id: \.self) { index in
-                    let album = appManager.model.albums[index]
+                ForEach(appManager.albums.indices, id: \.self) { index in
+                    let album = appManager.albums[index]
                     NavigationLink(destination: VideoView(appManager: appManager, album: album)) {
                         HStack {
                             let baseIdentifier = "ContentView_List_\(index)_Text"
@@ -88,8 +87,7 @@ struct ContentView_Previews: PreviewProvider {
             PreviewAlbum(id: "4", title: "", videos: [
             ]),
         ]
-        let previewModel = Model(albums: previewAlbums)
-        let appManager = AppManager(model: previewModel)
+        let appManager = AppManager(albums: previewAlbums)
         ContentView(appManager: appManager)
     }
 }

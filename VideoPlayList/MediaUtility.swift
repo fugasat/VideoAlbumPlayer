@@ -34,9 +34,8 @@ class MediaUtility {
         printAuthorizationStatus(authStatus: authStatus)
         if authStatus == .authorized {
             return true
-        } else {
-            return false
         }
+        return false
     }
     
     private func printAuthorizationStatus(authStatus: PHAuthorizationStatus) {

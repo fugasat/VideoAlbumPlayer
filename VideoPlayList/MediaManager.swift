@@ -43,9 +43,8 @@ class MediaManager {
     func getCurrentVideo() -> Video? {
         if playIndex >= 0 && playIndex < playList.count {
             return playList[playIndex]
-        } else {
-            return nil
         }
+        return nil
     }
     
     func getPlayIndex() -> Int {
@@ -79,9 +78,8 @@ class MediaManager {
     func enablePrevious() -> Bool {
         if playIndex > 0 {
             return true
-        } else {
-            return false
         }
+        return false
     }
 
 }

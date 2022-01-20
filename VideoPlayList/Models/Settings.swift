@@ -1,5 +1,3 @@
-import Foundation
-
 public enum SettingsOrientationType : Int {
     case portrait = 0
     case landscape = 1

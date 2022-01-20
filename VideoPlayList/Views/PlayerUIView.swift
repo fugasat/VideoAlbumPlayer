@@ -1,16 +1,18 @@
 import Foundation
-import SwiftUI
 import Photos
 import AVKit
 
+protocol PlayerDelegate {
+    func playerDidFinish()
+}
+
 class PlayerUIView: UIView {
     
-    @ObservedObject private var appManager: AppManager
     private let player = AVPlayer()
     private let playerLayer = AVPlayerLayer()
+    var delegate: PlayerDelegate?
 
-    init(appManager: AppManager) {
-        self.appManager = appManager
+    init() {
         super.init(frame: .zero)
         self.playerLayer.player = self.player
         self.layer.addSublayer(self.playerLayer)
@@ -25,42 +27,16 @@ class PlayerUIView: UIView {
         playerLayer.frame = bounds
     }
     
-    func startPlayer() {
-        if let video = appManager.getCurrentVideo() {
+    func startPlayer(currentVideo: Video?, rotationAngle: CGFloat) {
+        if let video = currentVideo {
             let asset = video.asset
             guard (asset.mediaType == .video) else {
                 print("Not a valid video media type")
+                delegate?.playerDidFinish()
                 return
             }
             
-            // 画面の向きを取得
-            let scenes = UIApplication.shared.connectedScenes
-            let windowScene = scenes.first as? UIWindowScene
-            let window = windowScene?.windows.first
-            let isPortrait: Bool
-            if window?.windowScene?.interfaceOrientation.isPortrait ?? true {
-                isPortrait = true
-            } else {
-                isPortrait = false
-            }
-
-            // 画面と再生方向の向きから回転角度を決める
-            var rotate = false
-            if SettingsManager.sharedManager.settings.orientationType == .portrait {
-                if !isPortrait {
-                    rotate = true
-                }
-            } else if SettingsManager.sharedManager.settings.orientationType == .landscape {
-                if isPortrait {
-                    rotate = true
-                }
-            }
-            if rotate {
-                appManager.rotationAngle = .pi / 2
-            } else {
-                appManager.rotationAngle = 0
-            }
-            rotatePlayerLayer(angle: appManager.rotationAngle)
+            rotatePlayerLayer(angle: rotationAngle)
 
             let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
@@ -73,12 +49,15 @@ class PlayerUIView: UIView {
                 }
             }
         } else {
-            appManager.closeAlbum()
+            delegate?.playerDidFinish()
         }
     }
     
     func rotatePlayerLayer(angle: CGFloat) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         playerLayer.setAffineTransform(CGAffineTransform(rotationAngle: angle))
+        CATransaction.commit()
     }
     
     func pausePlayer() {
@@ -94,7 +73,7 @@ class PlayerUIView: UIView {
     }
 
     @objc func playerDidFinishPlaying() {
-        appManager.nextPlay()
+        delegate?.playerDidFinish()
     }
 
     deinit {

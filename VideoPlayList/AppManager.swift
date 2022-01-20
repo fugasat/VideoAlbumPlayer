@@ -1,48 +1,27 @@
 import Foundation
 import Photos
 
-class VideoPlayerStatus: Equatable {
-
-    enum VideoPlayerStatusType : Int {
-        case none = -1
-        case start = 0
-        case pause = 1
-        case restart = 2
-        case close = 3
-    }
-
-    let status: VideoPlayerStatusType
-
-    init(status: VideoPlayerStatusType) {
-        self.status = status
-    }
-
-    static func == (lhs: VideoPlayerStatus, rhs: VideoPlayerStatus) -> Bool {
-        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
-    }
-}
-
 /// アプリ全体の制御を行う
 class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
 
-    @Published var model: Model
-    @Published var navigationTitle = ""
-    @Published var hideNavigationBar = false
-    @Published var showingPhotoLibraryAuthorizedAlert = false
-    @Published var videoPlayerStatus: VideoPlayerStatus = VideoPlayerStatus(status: .none)
-    @Published var rotationAngle: CGFloat = 0
+    @Published var showingPhotoLibraryAuthorizedAlert = false // 写真アクセスが許可されていない時に警告を表示
+    @Published var navigationTitle = "" // タイトル表示の文言
+    @Published var currentVideo: Video? = nil // 再生中のビデオ
+    @Published var hideNavigationBar = false // ビデオ再生中のナビゲーションを非表示にする
+    @Published var pauseVideoPlayer: Bool = false // ビデオ再生を一時停止する
+    @Published var rotationAngle: CGFloat = 0 // 表示角度を変える
 
-    let mediaUtility = MediaUtility()
+    var mediaUtility: MediaUtility = MediaUtility()
     let mediaManager = MediaManager()
+    var albums: [Album] = []
 
-    override init() {
-        model = Model()
+    init(albums: [Album]) {
         super.init()
+        navigationTitle = createNavigationTitle(albums: albums)
     }
     
-    convenience init(model: Model) {
-        self.init()
-        self.model = model
+    override convenience init() {
+        self.init(albums: [])
     }
     
     //
@@ -62,8 +41,14 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     /// App開始
     func start() {
         print("AppManager.start")
-        navigationTitle = createNavigationTitle(model: model)
         loadAlbum()
+    }
+    
+    func setAlbums(albums: [Album]) {
+        self.albums = albums
+        currentVideo = nil
+        pauseVideoPlayer = false
+        navigationTitle = createNavigationTitle(albums: albums)
     }
     
     private func loadAlbum() {
@@ -72,55 +57,42 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
         mediaUtility.register(photoLibraryChangeObserver: self) { authorized in
             DispatchQueue.main.async {
                 // ※ Publish変数のbackground threadでの更新は許可されていない為、main threadで処理する
+                var albums: [Album] = []
                 if authorized {
                     // Photoライブラリへのアクセスが許可されていたらアルバムを読み込む
-                    let albums = self.mediaUtility.load()
-                    self.model = Model(albums: albums)
-                    self.navigationTitle = self.createNavigationTitle(model: self.model)
+                    albums = self.mediaUtility.load()
                 } else {
                     // 許可されていない場合はアラート表示を有効にする
                     self.showingPhotoLibraryAuthorizedAlert = true
                 }
+                self.setAlbums(albums: albums)
             }
         }
     }
     
-    func createNavigationTitle(model: Model) -> String {
-        if model.albums.count > 0 {
-            return "\(NSLocalizedString("video albums", comment: "video albums")) (\(model.albums.count))"
-        } else {
-            return "\(NSLocalizedString("no video albums", comment: "no video albums"))"
+    private func createNavigationTitle(albums: [Album]) -> String {
+        if albums.count > 0 {
+            return "\(NSLocalizedString("video albums", comment: "video albums")) (\(albums.count))"
         }
+        return "\(NSLocalizedString("no video albums", comment: "no video albums"))"
     }
     
     //
     // MARK: Player control
     //
     
-    func openAlbum(album: Album) {
+    func openAlbum(album: Album, rotationAngle: CGFloat, sort: SettingsSortType) {
         print("AppManager.openAlbum : \(album.getTitle()) (\(album.videos.count))")
         mediaManager.setAlbum(album: album)
-        mediaManager.initializePlayList(sort: SettingsManager.sharedManager.settings.sortType)
-        rotationAngle = 0
+        mediaManager.initializePlayList(sort: sort)
+        self.rotationAngle = rotationAngle
         startPlay()
-    }
-    
-    func getCurrentVideo() -> Video? {
-        return mediaManager.getCurrentVideo()
-    }
-
-    func isPause() -> Bool {
-        if self.videoPlayerStatus.status == .pause {
-            return true
-        } else {
-            return false
-        }
     }
     
     func timerHideNavigationBar() {
         let _ = Timer.scheduledTimer(withTimeInterval: 2, repeats: false, block: {
             (time:Timer) in
-            if !self.isPause() {
+            if !self.pauseVideoPlayer {
                 self.hideNavigationBar = true
             }
         })
@@ -128,12 +100,12 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     
     func closeAlbum() {
         print("AppManager.closeAlbum")
-        videoPlayerStatus = VideoPlayerStatus(status: .close)
+        currentVideo = nil
     }
     
     func startPlay() {
         print("AppManager.startPlay")
-        videoPlayerStatus = VideoPlayerStatus(status: .start)
+        currentVideo = mediaManager.getCurrentVideo()
         timerHideNavigationBar()
     }
     
@@ -156,13 +128,13 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     func pausePlay() {
         print("AppManager.pausePlay")
         hideNavigationBar = false
-        videoPlayerStatus = VideoPlayerStatus(status: .pause)
+        pauseVideoPlayer = true
     }
 
     func restartPlay() {
         print("AppManager.restartPlay")
-        if mediaManager.getAlbum() != nil && isPause() {
-            videoPlayerStatus = VideoPlayerStatus(status: .restart)
+        if mediaManager.getAlbum() != nil && pauseVideoPlayer {
+            pauseVideoPlayer = false
             timerHideNavigationBar()
         }
     }
@@ -170,7 +142,7 @@ class AppManager: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     func togglePauseAndRestartPlay() {
         print("AppManager.togglePauseAndRestartPlay")
         if mediaManager.getAlbum() != nil {
-            if isPause() {
+            if pauseVideoPlayer {
                 restartPlay()
             } else {
                 pausePlay()

@@ -1,5 +1,4 @@
 import SwiftUI
-import AVKit
 
 struct VideoView: View {
 
@@ -26,11 +25,11 @@ struct VideoView: View {
         GeometryReader { bodyView in
             Color.black.edgesIgnoringSafeArea(.all)
             ZStack() {
-                PlayerView(appManager: appManager, status: $playerStatus0, album: album)
+                PlayerView(appManager: appManager, status: $playerStatus0)
                     .accessibility(identifier: "VideoView_PlayerView0")
                     .offset(x:offset_x, y:offset_y)
                     .opacity(opacity0)
-                PlayerView(appManager: appManager, status: $playerStatus1, album: album)
+                PlayerView(appManager: appManager, status: $playerStatus1)
                     .accessibility(identifier: "VideoView_PlayerView1")
                     .offset(x:offset_x, y:offset_y)
                     .opacity(opacity1)
@@ -61,20 +60,20 @@ struct VideoView: View {
         .navigationBarBackButtonHidden(appManager.hideNavigationBar)
         .edgesIgnoringSafeArea(.all)
         .onAppear {
-            appManager.openAlbum(album: album)
+            openAlbum(album: album, orientationType: SettingsManager.sharedManager.settings.orientationType, sort: SettingsManager.sharedManager.settings.sortType)
         }
-        .onChange(of: appManager.videoPlayerStatus) { newValue in
-            switch (newValue.status) {
-            case .none:
-                break
-            case .start:
+        .onChange(of: appManager.currentVideo) { newValue in
+            if (newValue != nil) {
                 startPlay()
-            case .pause:
-                pausePlay()
-            case .restart:
-                restartPlay()
-            case .close:
+            } else {
                 closeAlbum()
+            }
+        }
+        .onChange(of: appManager.pauseVideoPlayer) { newValue in
+            if newValue {
+                pausePlay()
+            } else {
+                restartPlay()
             }
         }
     }
@@ -170,9 +169,38 @@ struct VideoView: View {
         opacity1 = 0
         offset_x = 0
         offset_y = 0
-        playerStatus0 = .clear
-        playerStatus1 = .clear
         pausePlay()
+    }
+    
+    private func openAlbum(album: Album, orientationType: SettingsOrientationType, sort: SettingsSortType) {
+        // 画面の向きを取得
+        let scenes = UIApplication.shared.connectedScenes
+        let windowScene = scenes.first as? UIWindowScene
+        let window = windowScene?.windows.first
+        let isPortrait: Bool
+        if window?.windowScene?.interfaceOrientation.isPortrait ?? true {
+            isPortrait = true
+        } else {
+            isPortrait = false
+        }
+
+        // 画面と再生方向の向きから回転角度を決める
+        var rotate = false
+        if orientationType == .portrait {
+            if !isPortrait {
+                rotate = true
+            }
+        } else if orientationType == .landscape {
+            if isPortrait {
+                rotate = true
+            }
+        }
+        var rotationAngle: CGFloat = 0
+        if rotate {
+            rotationAngle = .pi / 2
+        }
+        
+        appManager.openAlbum(album: album, rotationAngle: rotationAngle, sort: sort)
     }
     
     private func startPlay() {
